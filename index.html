@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<body>
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Pomodoro Timer</title>
+        <!-- CSS Styles -->
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                margin: 0;
+                transition: background-color 0.5s, color 0.5s;
+            }
+
+            body.dark-mode {
+                background-color: #222;
+                color: #fff;
+            }
+
+            #timer {
+                font-size: 48px;
+                margin-bottom: 20px;
+                display: none;
+            }
+
+            button {
+                font-size: 24px;
+                padding: 10px;
+                margin: 5px;
+            }
+
+            .button-container {
+                display: flex;
+            }
+
+            #resumeBtn,
+            #stopBtn {
+                display: inline-block;
+                margin-left: 5px;
+            }
+
+            #workDur,
+            #breakDur {
+                font-size: 24px;
+                margin-top: 10px;
+                margin-bottom: 10px;
+                text-align: center;
+            }
+
+            label {
+                margin-bottom: 5px;
+                text-align: center;
+            }
+
+            .input-group {
+                display: flex;
+                align-items: center;
+                justify-content: flex-end;
+            }
+
+            .input-group input {
+                font-size: 24px;
+                margin-right: 0;
+                width: 75px;
+                text-align: right;
+            }
+
+            .settings-btn {
+                position: fixed;
+                top: 10px;
+                right: 10px;
+                background-color: #ccc;
+                padding: 5px 10px;
+                cursor: pointer;
+            }
+
+            #customModal {
+                display: none;
+                position: fixed;
+                top: 20%;
+                left: 50%;
+                transform: translateX(-50%);
+                padding: 20px;
+                border: 1px solid #ccc;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+                z-index: 1000;
+                text-align: center;
+                font-size: 24px;
+            }
+
+            #modalText {
+                margin-bottom: 20px;
+            }
+
+            #modalConfirm {
+                padding: 10px 20px;
+                background-color: #007bff;
+                color: #fff;
+                border: none;
+                cursor: pointer;
+            }
+
+            #progressBarContainer {
+                position: fixed;
+                bottom: 0;
+                left: 30%;
+                width: 40%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                display: none;
+            }
+
+            #progressPercentage {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: #fff;
+                font-size: 18px;
+                pointer-events: none;
+            }
+
+            #progressBar {
+                height: 20px;
+                width: 100%;
+                background-color: #4caf50;
+                transition: 0.75s ease-out;
+            }
+        </style>
+    </head>
+
+    <body>
+
+        <!-- HTML Content -->
+        <div id="timer">25:00</div>
+
+        <div id="workDur">
+            <label for="workDuration">Work Duration</label>
+            <div class="input-group">
+                <input type="number" id="workMinutes" value="25" min="0" step="1" placeholder="MM">
+                <span>:</span>
+                <input type="number" id="workSeconds" value="0" min="0" max="59" step="1" placeholder="SS">
+            </div>
+        </div>
+
+        <div id="breakDur">
+            <label for="breakDuration">Break Duration</label>
+            <div class="input-group">
+                <input type="number" id="breakMinutes" value="5" min="0" step="1" placeholder="MM">
+                <span>:</span>
+                <input type="number" id="breakSeconds" value="0" min="0" max="59" step="1" placeholder="SS">
+            </div>
+        </div>
+
+        <button id="startBtn" onclick="startTimer()">Start</button>
+        <div class="button-container">
+            <button id="pauseBtn" style="display: none;" onclick="pauseTimer()">Pause</button>
+            <button id="resumeBtn" style="display: none;" onclick="resumeTimer()">Resume</button>
+            <button id="stopBtn" style="display: none;" onclick="stopTimer()">Stop</button>
+        </div>
+
+        <!-- Settings/Menu Button -->
+        <button class="settings-btn" onclick="toggleDarkMode()">🌙</button>
+
+        <!-- Modal -->
+        <div id="customModal">
+            <p id="modalText"></p>
+            <button id="modalConfirm">OK</button>
+        </div>
+
+        <!-- Progress Bar -->
+        <div id="progressBarContainer">
+            <div id="progressBar"></div>
+            <div id="progressPercentage">100</div>
+        </div>
+
+        <!-- JavaScript Code -->
+        <script>
+            let timer;
+
+            // minutes and seconds which we poll from input
+            let workMinutes = 25;
+            let workSeconds = 0;
+            let breakMinutes = 5;
+            let breakSeconds = 0;
+
+            // minutes and seconds we alter during the duration
+            let alterWM;
+            let alterWS;
+            let alterBM;
+            let alterBS;
+
+            let isPaused = false;
+            let isStopped = false; // utilized to fix bug -- when pressing Stop, but 'OK' button still open, clicking 'OK' reopened the timer unprompted
+            let breakStarted = false;
+            let progressBarWidth = 0;
+            displayTime();
+
+            function startTimer() {
+                isPaused = false;
+                isStopped = false;
+
+                workMinutes = parseInt(document.getElementById("workMinutes").value);
+                workSeconds = parseInt(document.getElementById("workSeconds").value);
+                breakMinutes = parseInt(document.getElementById("breakMinutes").value);
+                breakSeconds = parseInt(document.getElementById("breakSeconds").value);
+
+                if (!isValidInput()) {
+                    alert("Please enter valid durations.");
+                    return;
+                }
+
+                alterWM = workMinutes;
+                alterWS = workSeconds;
+                alterBM = breakMinutes;
+                alterBS = breakSeconds;
+
+                // Buttons
+                document.getElementById("startBtn").style.display = "none";
+                document.getElementById("pauseBtn").style.display = "inline-block";
+                document.getElementById("stopBtn").style.display = "inline-block";
+                // Hide the duration inputs when the timer starts
+                document.getElementById("workDur").style.display = "none";
+                document.getElementById("breakDur").style.display = "none";
+                // And show the timer
+                document.getElementById("timer").style.display = "block";
+                // As well as the progress bars
+                document.getElementById("progressBarContainer").style.display = "inline-block";
+                document.getElementById("progressBar").style.width = 100 + "%";
+                document.getElementById("progressPercentage").innerText = Math.round(100 * 10) / 10;
+
+                clearInterval(timer);
+                timer = setInterval(updateTimer, 1000);
+
+                updateStyles();
+                displayTime();
+            }
+
+
+
+            function updateTimer() {
+                if (!isPaused) {
+                    if (alterWM === 0 && alterWS === 0 && alterBM === 0 && alterBS === 0) {
+                        clearInterval(timer);
+                        showCustomModal("Break has ended. Back to work! ✏️", function () {
+                            breakStarted = false;
+                            resetTimer();
+                            // Instead of stopping, we restart the timer
+                            if (!isStopped) {
+                                startTimer();
+                            }
+                        });
+                    }
+
+                    if (alterWM > 0 || alterWS > 0) {
+                        if (alterWS === 0) {
+                            if (alterWM > 0) {
+                                alterWM--;
+                            }
+                            alterWS = 59;
+                        } else {
+                            alterWS--;
+                        }
+                    } else if (alterBM > 0 || alterBS > 0) {
+                        if (alterBS === 0) {
+                            if (alterBM > 0) {
+                                alterBM--;
+                            }
+                            alterBS = 59;
+                        } else {
+                            alterBS--;
+                        }
+                    }
+
+                    // Calculate percentage remaining duration in seconds
+                    const remainingDuration = breakStarted ? (alterBM * 60 + alterBS) / (breakMinutes * 60 + breakSeconds) : (alterWM * 60 + alterWS) / (workMinutes * 60 + workSeconds);
+
+                    // Update the width of the progress bar and progress percentage
+                    document.getElementById("progressBar").style.width = remainingDuration * 100 + "%";
+                    document.getElementById("progressPercentage").innerText = Math.round(remainingDuration * 100 * 10) / 10;
+
+                    if (!breakStarted && alterWM + alterWS === 0) {
+                        // Show notification for break start
+                        isPaused = true;
+                        clearInterval(timer);
+                        showCustomModal("Break has started. Go grab a coffee! ☕", function () {
+                            timer = setInterval(updateTimer, 1000);
+                            isPaused = false;
+                            breakStarted = true;
+                        });
+                    }
+
+                    displayTime();
+                }
+            }
+
+            function isValidInput() {
+                if (document.getElementById("workMinutes").value === "") {
+                    workMinutes = 0;
+                }
+
+                if (document.getElementById("workSeconds").value === "") {
+                    workSeconds = 0;
+                }
+
+                if (document.getElementById("breakMinutes").value === "") {
+                    breakMinutes = 0;
+                }
+
+                if (document.getElementById("breakSeconds").value === "") {
+                    breakSeconds = 0;
+                }
+
+                while (workSeconds >= 60) {
+                    workMinutes++;
+                    workSeconds -= 60;
+                }
+                while (breakSeconds >= 60) {
+                    breakMinutes++;
+                    breakSeconds -= 60;
+                }
+
+                return workMinutes >= 0 && workSeconds >= 0 && breakMinutes >= 0 && breakSeconds >= 0 &&
+                    workMinutes + workSeconds > 0 && breakMinutes + breakSeconds > 0;
+            }
+
+            function pauseTimer() {
+                isPaused = true;
+                document.getElementById("pauseBtn").style.display = "none";
+                document.getElementById("resumeBtn").style.display = "inline-block";
+            }
+
+            function resumeTimer() {
+                isPaused = false;
+                document.getElementById("resumeBtn").style.display = "none";
+                document.getElementById("pauseBtn").style.display = "inline-block";
+            }
+
+            function stopTimer() {
+                isStopped = true;
+                clearInterval(timer);
+                resetTimer();
+                document.getElementById("startBtn").style.display = "inline-block";
+                document.getElementById("pauseBtn").style.display = "none";
+                document.getElementById("resumeBtn").style.display = "none";
+                document.getElementById("stopBtn").style.display = "none";
+                // Show the duration inputs when the timer stops
+                document.getElementById("workDur").style.display = "block";
+                document.getElementById("breakDur").style.display = "block";
+                // And hide the timer
+                document.getElementById("timer").style.display = "none";
+            }
+
+            function resetTimer() {
+                workMinutes = parseInt(document.getElementById("workMinutes").value);
+                workSeconds = parseInt(document.getElementById("workSeconds").value);
+                breakMinutes = parseInt(document.getElementById("breakMinutes").value);
+                breakSeconds = parseInt(document.getElementById("breakSeconds").value);
+                displayTime();
+                updateStyles();
+            }
+
+            // Add event listeners for work duration inputs
+            document.getElementById("workMinutes").addEventListener("input", function () {
+                resetTimer();
+            });
+
+            document.getElementById("workSeconds").addEventListener("input", function () {
+                resetTimer();
+            });
+
+            function displayTime() {
+                const isWorkTime = alterWM + alterWS > 0;
+
+                const emoji = isWorkTime ? "📚" : "😴";
+                const formattedWorkMinutes = alterWM < 10 ? "0" + alterWM : alterWM;
+                const formattedWorkSeconds = alterWS < 10 ? "0" + alterWS : alterWS;
+                const formattedBreakMinutes = alterBM < 10 ? "0" + alterBM : alterBM;
+                const formattedBreakSeconds = alterBS < 10 ? "0" + alterBS : alterBS;
+
+                const timerDisplay = isWorkTime
+                    ? `${emoji} ${formattedWorkMinutes}:${formattedWorkSeconds}`
+                    : `${emoji} ${formattedBreakMinutes}:${formattedBreakSeconds}`;
+
+                document.getElementById("timer").innerText = timerDisplay;
+            }
+
+            function toggleDarkMode() {
+                const body = document.body;
+                const isDarkMode = body.classList.toggle('dark-mode');
+                updateStyles();
+
+                const darkModeButton = document.querySelector('.settings-btn');
+                darkModeButton.textContent = isDarkMode ? '☀️' : '🌙';
+            }
+
+            function updateStyles() {
+                const darkMode = document.body.classList.contains('dark-mode');
+                const backgroundColor = darkMode ? '#222' : '#fff';
+                const textColor = darkMode ? '#fff' : '#000';
+                const progressPercentageColor = darkMode ? '#fff' : '#000';
+
+                document.body.style.backgroundColor = backgroundColor;
+                document.body.style.color = textColor;
+                document.getElementById("progressPercentage").style.color = progressPercentageColor;
+            }
+
+            function showCustomModal(message, callback) {
+                var modal = document.getElementById('customModal');
+                var modalText = document.getElementById('modalText');
+                var modalConfirm = document.getElementById('modalConfirm');
+
+                modalText.textContent = message;
+                modal.style.display = 'block';
+
+                modalConfirm.onclick = function () {
+                    modal.style.display = 'none';
+                    callback();
+                };
+            }
+        </script>
+    </body>
+
+</html>
