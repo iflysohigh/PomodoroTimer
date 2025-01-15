@@ -2,15 +2,19 @@
 <html lang="en">
 
 <body>
-
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Pomodoro Timer</title>
+        <link href="https://cdn.jsdelivr.net/npm/remixicon/fonts/remixicon.css" rel="stylesheet">
         <!-- CSS Styles -->
         <style>
+            @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap");
+            :root{
+                font: --var(font-family);
+            }
             body {
-                font-family: Arial, sans-serif;
+                font-family: "Poppins", sans-serif;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
@@ -32,6 +36,7 @@
             }
 
             button {
+                background-color: #bbb;
                 font-size: 24px;
                 padding: 10px;
                 margin: 5px;
@@ -77,15 +82,17 @@
                 position: fixed;
                 top: 10px;
                 right: 10px;
-                background-color: #ccc;
+                background-color: #bbb;
                 padding: 5px 10px;
                 cursor: pointer;
             }
 
             #customModal {
+                position: absolute;
+                background-color: black;
                 display: none;
-                position: fixed;
-                top: 20%;
+                /* position: fixed; */
+                top: 10%;
                 left: 50%;
                 transform: translateX(-50%);
                 padding: 20px;
@@ -111,7 +118,7 @@
             #progressBarContainer {
                 background-color: grey;
                 position: absolute;
-                bottom: 0;
+                bottom: 50;
                 left: 30%;
                 width: 40%;
                 display: flex;
@@ -122,7 +129,7 @@
                 border-radius: 13px;
                 padding: 3px;
 
-                animation: converge
+                /* animation: converge */
             }
 
             #progressPercentage {
@@ -139,7 +146,7 @@
                 height: 20px;
                 width: 100%;
                 background-color: #4caf50;
-                transition: 0.75s ease-out;
+                transition: 0.25s ease-out;
 
                 border-radius: 10px;
             }
@@ -152,7 +159,7 @@
         <div id="timer">25:00</div>
 
         <div id="workDur">
-            <label for="workDuration">Work Duration</label>
+            <label for="workDuration">Work Time</label>
             <div class="input-group">
                 <input type="number" id="workMinutes" value="25" min="0" step="1" placeholder="MM">
                 <span>:</span>
@@ -161,7 +168,7 @@
         </div>
 
         <div id="breakDur">
-            <label for="breakDuration">Break Duration</label>
+            <label for="breakDuration">Break Time</label>
             <div class="input-group">
                 <input type="number" id="breakMinutes" value="5" min="0" step="1" placeholder="MM">
                 <span>:</span>
@@ -169,15 +176,17 @@
             </div>
         </div>
 
-        <button id="startBtn" onclick="startTimer()">Start</button>
+        <button id="startBtn" class="ri-play-line" onclick="startTimer()"></button>
         <div class="button-container">
-            <button id="pauseBtn" style="display: none;" onclick="pauseTimer()">Pause</button>
-            <button id="resumeBtn" style="display: none;" onclick="resumeTimer()">Resume</button>
-            <button id="stopBtn" style="display: none;" onclick="stopTimer()">Stop</button>
+            <button id="pauseBtn" class="ri-pause-line" style="display: none;" onclick="pauseTimer()"></button>
+            <button id="resumeBtn" class="ri-play-line" style="display: none;" onclick="resumeTimer()"></button>
+            <button id="stopBtn" class="ri-stop-line" style="display: none;" onclick="stopTimer()"></button>
         </div>
 
         <!-- Settings/Menu Button -->
-        <button class="settings-btn" onclick="toggleDarkMode()">🌙</button>
+        <button class="settings-btn" onclick="toggleDarkMode()">
+            <i id="themeIcon" class="ri-moon-foggy-line"></i>
+        </button>
 
         <!-- Modal -->
         <div id="customModal">
@@ -194,6 +203,7 @@
         <!-- JavaScript Code -->
         <script>
             let timer;
+            let darkMode = true;
 
             // minutes and seconds which we poll from input
             let workMinutes = 25;
@@ -249,7 +259,6 @@
                 clearInterval(timer);
                 timer = setInterval(updateTimer, 1000);
 
-                updateStyles();
                 displayTime();
             }
             
@@ -374,7 +383,16 @@
                 breakMinutes = parseInt(document.getElementById("breakMinutes").value);
                 breakSeconds = parseInt(document.getElementById("breakSeconds").value);
                 displayTime();
-                updateStyles();
+                // updateStyles();
+
+                const darkMode = document.body.classList.contains('dark-mode');
+                const backgroundColor = darkMode ? '#222' : '#fff';
+                const textColor = darkMode ? '#fff' : '#000';
+                const progressPercentageColor = darkMode ? '#fff' : '#000';
+
+                document.body.style.backgroundColor = backgroundColor;
+                document.body.style.color = textColor;
+                document.getElementById("progressPercentage").style.color = progressPercentageColor;
             }
 
             // Add event listeners for work duration inputs
@@ -403,24 +421,23 @@
             }
 
             function toggleDarkMode() {
+                darkMode = !darkMode;
                 const body = document.body;
-                const isDarkMode = body.classList.toggle('dark-mode');
-                updateStyles();
+                const themeIcon = document.getElementById("themeIcon");
 
-                const darkModeButton = document.querySelector('.settings-btn');
-                darkModeButton.textContent = isDarkMode ? '☀️' : '🌙';
+                if (darkMode) {
+                    body.classList.add("dark-mode");
+                    themeIcon.classList.remove("ri-moon-foggy-line");
+                    themeIcon.classList.add("ri-sun-foggy-line");
+                } 
+                else {
+                    body.classList.remove("dark-mode");
+                    themeIcon.classList.remove("ri-sun-foggy-line");
+                    themeIcon.classList.add("ri-moon-foggy-line");
+                }
             }
 
-            function updateStyles() {
-                const darkMode = document.body.classList.contains('dark-mode');
-                const backgroundColor = darkMode ? '#222' : '#fff';
-                const textColor = darkMode ? '#fff' : '#000';
-                const progressPercentageColor = darkMode ? '#fff' : '#000';
-
-                document.body.style.backgroundColor = backgroundColor;
-                document.body.style.color = textColor;
-                document.getElementById("progressPercentage").style.color = progressPercentageColor;
-            }
+            document.body.classList.add("dark-mode");
 
             function showCustomModal(message, callback) {
                 var modal = document.getElementById('customModal');
@@ -435,6 +452,42 @@
                     callback();
                 };
             }
+
+            // Allow dragging of break box
+            // Draggable modal functionality
+            let isDragging = false;
+            let offsetX = 0;
+            let offsetY = 0;
+
+            const modal = document.getElementById("customModal");
+
+            modal.addEventListener("mousedown", (e) => {
+                // Only start dragging if the mouse is pressed on the modal
+                isDragging = true;
+                
+                // Calculate the offset between the mouse click position and the modal's position
+                // offsetX = e.clientX - modal.getBoundingClientRect().left;
+                // offsetY = e.clientY - modal.getBoundingClientRect().top;
+                
+                // Prevent the default behavior (important for dragging)
+                e.preventDefault();
+            });
+
+            document.addEventListener("mousemove", (e) => {
+                if (isDragging) {
+                    // Update the position of the modal while dragging
+                    const newX = e.clientX - offsetX;
+                    const newY = e.clientY - offsetY;
+        
+                    modal.style.left = `${newX}px`;
+                    modal.style.top = `${newY}px`;
+                }
+            });
+
+            document.addEventListener("mouseup", () => {
+                // Stop dragging when the mouse button is released
+                isDragging = false;
+            });
         </script>
     </body>
 
